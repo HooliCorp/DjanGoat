@@ -6,6 +6,8 @@ from django.shortcuts import redirect, render
 from django.contrib import messages
 from app.models.User.user import User
 
+from tcell_hooks.v1 import send_django_login_event, LOGIN_SUCCESS
+
 
 @require_http_methods(["GET"])
 def login(request):
@@ -48,6 +50,13 @@ def sessions_index(request, email=None, password=None, path='/dashboard/home'):
                                     max_age=year_in_sec)
             else:
                 response.set_cookie("auth_token", user.auth_token)
+
+            send_django_login_event(
+                status=LOGIN_SUCCESS,
+                django_request=request,
+                user_id="tcell@tcell.io",
+                session_id="124KDJFL3234"
+            )
             return response
         except User.DoesNotExist:
             message = "Email incorrect!"

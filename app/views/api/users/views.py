@@ -5,7 +5,7 @@ from app.models import User
 from pygoat.settings import ACCESS_TOKEN_SALT
 from Crypto.Hash import SHA
 import re
-import urlparse
+from urllib.parse import urlparse
 
 
 @require_http_methods(["GET"])

@@ -38,3 +38,5 @@ env/
 #Exclude settings stuff
 local_settings.py
 *.cfg
+.venv
+.python-version
