@@ -4,9 +4,11 @@ IMPORT io.shiftleft/defaultdict
 ################################
 # Sinks that are protected by Rapid7 tcell
 ################################
+
 ###############################################################################
 # Category Open Redirect #
 ###############################################################################
+
 IO tcell_protected = METHOD -f "django.shortcuts.redirect:typing.Union[django.http.response.HttpResponseRedirect,django.http.response.HttpResponsePermanentRedirect](to:typing.Union[typing.Callable,builtins.str,django.shortcuts.SupportsGetAbsoluteUrl],*args:typing.Any,permanent:builtins.bool,**kwargs:typing.Any)" { INST "DESCRIPTOR_USE", PAR -i 1 "SINK", PAR -i 2 "SINK", PAR -i 4 "SINK" }
 
 CONCLUSION open-redirect-tcell = FLOW IO (http OR $http) -> DATA (NOT escaped AND NOT numeric) -> IO (tcell_protected) -> IO ((http OR $http) AND redirect)
@@ -39,35 +41,44 @@ Open Redirect detection is part of tCell's App Firewall feature and is enabled b
 }
 
 ###############################################################################
-# Category SQL Injection #
+# Category Remote Code Execution #
 ###############################################################################
+
 IO tcell_protected = METHOD -f "os.system:builtins.int(command:os.AnyPath)" { PAR -i 1 "SINK" }
 
-CONCLUSION sql-injection-attacker-controlled-tcell = FLOW DATA (NOT encrypted AND NOT hashed AND NOT encoded AND NOT escaped AND NOT numeric) -> IO (tcell_protected) -> IO (sql)
-WHEN CONCLUSION sql-injection-attacker-controlled-tcell => EMIT {
-  title: "SQL Injection: Attacker-controlled data to SQL database {{via `$paramname`}} {{in `$methodname`}}",
-  description: "Attacker controlled data is used in a SQL query without undergoing escaping or validation. This could allow an attacker to read sensitive data from the database, modify its content or gain control over the server.
+CONCLUSION command-injection-http-tcell = FLOW IO (http) -> DATA (NOT attacker-controlled AND NOT encrypted AND NOT hashed AND NOT encoded AND NOT escaped AND NOT numeric) -> IO (tcell_protected) -> IO (execute)
+WHEN CONCLUSION command-injection-http-tcell => EMIT {
+  title: "Remote Code Execution: Command Injection through HTTP {{via `$paramname`}} {{in `$methodname`}}",
+  description: "HTTP data is used in a shell command without undergoing escaping or validation. This could allow an attacker to execute code on the server. Injection flaws occur when untrusted data is sent to an interpreter as part of a command or query. By injecting hostile data, an attacker may trick the interpreter into executing unintended commands or accessing data without authorization which can result in data loss, corruption, or disclosure to unauthorized parties, loss of accountability, denial of access or even a complete host takeover.
 
 ## Rapid7 tCell protection
 
-SQL injection detection is part of tCell's App Firewall feature and is enabled by default. To verify that it's enabled, log in to your tCell console and go to Policies > App Firewall. Ensure that Enabled is checked for the App Firewall and ensure that Enabled is checked under the SQL Injection category.
+Rapid7 tCell can detect and block successful command injection attacks. It instruments your application and monitor the commands it issues to the host operating system.
 
-**[SQL Injection Protection](https://docs.tcell.io/docs/sql-injection)**
+**[Command Injection](https://docs.tcell.io/docs/command-injection)**
 
 ## Countermeasures
 
-This vulnerability can be prevented by using prepared statements on the attacker-controlled data.
+This vulnerability can be prevented by using parameterized queries or by validating HTTP data (preferably on server-side by means of common input sanitation libraries or whitelisting) before using it.
 
 ## Additional information
 
-**[CWE-89](https://cwe.mitre.org/data/definitions/89.html)**
+**[CWE-77](https://cwe.mitre.org/data/definitions/77.html)**
+
+**[CWE-78](https://cwe.mitre.org/data/definitions/78.html)**
+
+**[CWE-917](https://cwe.mitre.org/data/definitions/917.html)**
 
 **[OWASP-A1](https://owasp.org/www-project-top-ten/OWASP_Top_Ten_2017/Top_10-2017_A1-Injection)**",
   category: "a1-injection",
   score: "2.0",
-  vulnerability_description: "SQL Injection (Protected)",
+  vulnerability_description: "Remote Code Execution (Protected)",
   owasp_link: "https://owasp.org/www-project-top-ten/OWASP_Top_Ten_2017/Top_10-2017_A1-Injection",
   link: "https://owasp.org/www-project-top-ten/OWASP_Top_Ten_2017/Top_10-2017_A1-Injection",
-  cwe_link: "https://cwe.mitre.org/data/definitions/89.html",
-  cwe_category: "89"
+  cwe_link: "https://cwe.mitre.org/data/definitions/77.html",
+  cwe_link: "https://cwe.mitre.org/data/definitions/78.html",
+  cwe_link: "https://cwe.mitre.org/data/definitions/917.html",
+  cwe_category: "77",
+  cwe_category: "78",
+  cwe_category: "917"
 }
